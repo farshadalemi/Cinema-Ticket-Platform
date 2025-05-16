@@ -33,13 +33,10 @@ services:
         condition: service_healthy
     networks:
       - cinema-network
-    volumes:
-      - ./backend:/app
-    command: >
-      sh -c "
-        pip install -r requirements.txt &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   # Frontend Application
   frontend:
@@ -51,11 +48,12 @@ services:
       - backend
     networks:
       - cinema-network
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8000
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   # PgAdmin for database management (optional)
   pgadmin:
