@@ -1,0 +1,79 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: cinema-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cinema_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - cinema-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: cinema-backend
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/cinema_db
+      - SECRET_KEY=your-secret-key-for-jwt
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cinema-network
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "
+        pip install -r requirements.txt &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # Frontend Application
+  frontend:
+    build: ./frontend
+    container_name: cinema-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - cinema-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+
+  # PgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: cinema-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cinema.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - cinema-network
+
+networks:
+  cinema-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
